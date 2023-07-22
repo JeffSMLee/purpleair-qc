@@ -1,5 +1,3 @@
-import glob
-from enum import Enum
 from pathlib import Path
 from typing import List
 
@@ -17,6 +15,7 @@ class LinearRegression:
         self.model = None
 
     def fit(self, df: pd.DataFrame, save_dir: str):
+        print("Fitting linear regression.")
         save_dir = Path(save_dir)
         save_dir.mkdir(parents=True, exist_ok=True)
         d = df.groupby(['AQSID', 'datetime_utc'])[[self.target] + self.covariates].agg(np.nanmean)
@@ -33,6 +32,7 @@ class LinearRegression:
         print(f"R2: {self.model.score(x, y)}")
         print(f"RMSE: {np.mean((y - qa_pred) ** 2) ** 0.5}")
 
+        print(f"Saving outputs to {save_dir}.")
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
         fig.suptitle(f"PM2.5 Correlation (PurpleAir/Modeled vs. Airnow)")
         ax1.set_title("PurpleAir PM2.5 vs. AirNow PM2.5")
@@ -52,11 +52,12 @@ class LinearRegression:
         plt.close()
 
         with open(save_dir / Path("lin_reg.txt"), 'w') as f:
-            f.writelines([f'{var}: {coef}' for var, coef in zip(self.covariates, self.model.coef_[0])])
+            f.writelines([f'{var}: {coef}\n' for var, coef in zip(self.covariates, self.model.coef_[0])])
 
         station_dir = save_dir / Path("station_plots")
         station_dir.mkdir(parents=True, exist_ok=True)
         index = pd.date_range(df.datetime_utc.min(), df.datetime_utc.max(), freq="h", name="datetime_utc")
+        df['pred'] = self.model.predict(df[['pm25_pa', 'humidity_a']].to_numpy())
         for sid, data in df.groupby('AQSID'):
             graph_params = data.groupby("datetime_utc").agg(an_pm=("PM25", "first"),
                                                             pred_mean=("pred", "mean"),

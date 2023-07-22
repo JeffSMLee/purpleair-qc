@@ -16,7 +16,7 @@ tf = timezonefinder.TimezoneFinder()
 
 def get_utc(x):
     tz = pytz.timezone(tf.timezone_at(lat=x.latitude, lng=x.longitude))
-    return x.date_time_utc - tz.localize(x.date_time_utc).utcoffset()
+    return x.datetime_local - tz.localize(x.datetime_local).utcoffset()
 
 
 def generate_pa_hourly(data_dir: str,
@@ -25,6 +25,7 @@ def generate_pa_hourly(data_dir: str,
                        abs_diff_threshold: float,
                        pm25_max: float,
                        pm10_max: float) -> None:
+    print(f"Generating PurpleAir hourly data at {save_dir}.")
     sensor_list = pd.read_csv(f"{data_dir}/sensors_list.csv", quotechar='"').drop("name", axis=1)
     sensor_list = sensor_list.set_axis(['sensor_index', 'location_type', 'latitude', 'longitude'], axis=1)
     pa_all = None
@@ -74,7 +75,7 @@ def generate_pa_hourly(data_dir: str,
 
     (Path(save_dir) / Path("hourly")).mkdir(parents=True, exist_ok=True)
     (Path(save_dir) / Path("hourly_qa_pm25")).mkdir(parents=True, exist_ok=True)
-    (Path(save_dir) / Path("hourly_qa_pm25")).mkdir(parents=True, exist_ok=True)
+    (Path(save_dir) / Path("hourly_qa_pm10")).mkdir(parents=True, exist_ok=True)
     for time, group in pa_all.groupby("datetime_utc"):
         hourly = group.sort_values("sensor_index").reset_index(drop=True)
         hourly.to_csv(f"{save_dir}/hourly/{time.strftime('%Y%m%d_%H')}.csv", index=False,
@@ -128,17 +129,17 @@ def generate_pa_hourly(data_dir: str,
             qa_count_pm25.append(0)
     axs[0, 0].plot(dates_pm25, all_count_pm25, label="all")
     axs[0, 0].plot(dates_pm25, qa_count_pm25, label="qa")
-    axs[0, 0].title("Number of Data Records (PM2.5)")
+    axs[0, 0].set_title("Number of Data Records (PM2.5)")
     axs[0, 0].legend()
-    axs[0, 0].xlabel("date")
-    axs[0, 0].xticks(rotation=45, ha='right')
-    axs[0, 0].ylabel("count")
+    axs[0, 0].set_xlabel("date")
+    axs[0, 0].set_xticks(axs[0, 0].get_xticks(), axs[0, 0].get_xticklabels(), rotation=45, ha='right')
+    axs[0, 0].set_ylabel("count")
 
     axs[0, 1].plot(dates_pm25, [q / a for q, a in zip(qa_count_pm25, all_count_pm25)])
-    axs[0, 1].title("Ratio of QA Record Count to Total Record Count (PM2.5)")
-    axs[0, 1].xlabel("date")
-    axs[0, 1].ylabel("ratio")
-    axs[0, 1].xticks(rotation=45, ha='right')
+    axs[0, 1].set_title("Ratio of QA Record Count to Total Record Count (PM2.5)")
+    axs[0, 1].set_xlabel("date")
+    axs[0, 1].set_ylabel("ratio")
+    axs[0, 1].set_xticks(axs[0, 1].get_xticks(), axs[0, 1].get_xticklabels(), rotation=45, ha='right')
 
     dates_pm10 = pd.date_range(start_date, end_date, freq="H")
     all_count_pm10 = []
@@ -156,17 +157,17 @@ def generate_pa_hourly(data_dir: str,
             qa_count_pm10.append(0)
     axs[1, 0].plot(dates_pm10, all_count_pm10, label="all")
     axs[1, 0].plot(dates_pm10, qa_count_pm10, label="qa")
-    axs[1, 0].title("Number of Data Records (PM10)")
+    axs[1, 0].set_title("Number of Data Records (PM10)")
     axs[1, 0].legend()
-    axs[1, 0].xlabel("date")
-    axs[1, 0].xticks(rotation=45, ha='right')
-    axs[1, 0].ylabel("count")
+    axs[1, 0].set_xlabel("date")
+    axs[1, 0].set_xticks(axs[1, 0].get_xticks(), axs[1, 0].get_xticklabels(), rotation=45, ha='right')
+    axs[1, 0].set_ylabel("count")
 
     axs[1, 1].plot(dates_pm10, [q / a for q, a in zip(qa_count_pm10, all_count_pm10)])
-    axs[1, 1].title("Ratio of QA Record Count to Total Record Count (PM10)")
-    axs[1, 1].xlabel("date")
-    axs[1, 1].ylabel("ratio")
-    axs[1, 1].xticks(rotation=45, ha='right')
+    axs[1, 1].set_title("Ratio of QA Record Count to Total Record Count (PM10)")
+    axs[1, 1].set_xlabel("date")
+    axs[1, 1].set_ylabel("ratio")
+    axs[1, 1].set_xticks(axs[1, 1].get_xticks(), axs[1, 1].get_xticklabels(), rotation=45, ha='right')
 
     plt.savefig(image_path / Path("record_count.png"))
     plt.close()
@@ -178,7 +179,7 @@ def generate_pa_hourly(data_dir: str,
         ax.coastlines()
         ax.add_feature(cfeature.BORDERS, linewidth=0.5)
         ax.add_feature(cfeature.STATES, linewidth=0.3)
-        d = pa_all[pa_all.utc_actual == date]
+        d = pa_all[pa_all.datetime_utc == date]
         dqa = pa_all_qa_pm25[pa_all_qa_pm25.datetime_utc == date]
         plt.scatter(d.longitude, d.latitude, transform=ccrs.PlateCarree(), color="r", s=0.5)
         plt.scatter(dqa.longitude, dqa.latitude, transform=ccrs.PlateCarree(), color="b", s=0.5)
@@ -191,10 +192,11 @@ def pair_data(pa_hourly_dir: str,
               an_hourly_dir: str,
               collocation_radius: float,
               crs: str) -> pd.DataFrame:
+    print(f"Collocating data ({collocation_radius}m).")
     start_date = min(pd.to_datetime(sorted(os.listdir(pa_hourly_dir))[0], format="%Y%m%d_%H.csv"),
-                     pd.to_datetime(sorted(os.listdir(an_hourly_dir))[0], format="HourlyAQObs_%Y%m%d_%H.csv"))
+                     pd.to_datetime(sorted(os.listdir(an_hourly_dir))[0], format="HourlyAQObs_%Y%m%d%H.dat"))
     end_date = max(pd.to_datetime(sorted(os.listdir(pa_hourly_dir))[-1], format="%Y%m%d_%H.csv"),
-                     pd.to_datetime(sorted(os.listdir(an_hourly_dir))[-1], format="HourlyAQObs_%Y%m%d_%H.csv"))
+                     pd.to_datetime(sorted(os.listdir(an_hourly_dir))[-1], format="HourlyAQObs_%Y%m%d%H.dat"))
     date_range = pd.date_range(start=start_date, end=end_date, freq="H")
 
     # all = [None] * len(collocation_radius)
