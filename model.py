@@ -45,8 +45,8 @@ class LinearRegression:
         sns.kdeplot(x=qa_pred.flatten(), y=y.flatten(), cmap="terrain", fill=True, bw_adjust=.5, thresh=0.01,
                     clip=(0, 400),
                     ax=ax2)
-        ax2.set_xlabel("PurpleAir PM2.5")
-        ax2.set_ylabel("Predicted PM2.5")
+        ax2.set_xlabel("Predicted PM2.5")
+        ax2.set_ylabel("AirNow PM2.5")
         ax2.plot([0, 400], [0, 400], color='r')
         plt.savefig(save_dir / Path("fit.png"))
         plt.close()
@@ -54,7 +54,7 @@ class LinearRegression:
         with open(save_dir / Path("lin_reg.txt"), 'w') as f:
             f.writelines([f'{var}: {coef}\n' for var, coef in zip(self.covariates, self.model.coef_[0])])
 
-        station_dir = save_dir / Path("station_plots")
+        station_dir = save_dir / Path("images/") / Path("station_plots")
         station_dir.mkdir(parents=True, exist_ok=True)
         index = pd.date_range(df.datetime_utc.min(), df.datetime_utc.max(), freq="h", name="datetime_utc")
         df['pred'] = self.model.predict(df[['pm25_pa', 'humidity_a']].to_numpy())
