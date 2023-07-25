@@ -207,7 +207,7 @@ def pair_data(pa_hourly_dir: str,
             pa_qa = pd.read_csv(f"{pa_hourly_dir}/{date.strftime('%Y%m%d_%H')}.csv")
             an = pd.read_csv(f"{an_hourly_dir}/HourlyAQObs_{date.strftime('%Y%m%d%H')}.dat")
             an = an.loc[(an.Latitude < 52) & (an.Latitude > 24) & (an.Longitude < -64) & (an.Longitude > -137) & (
-                ~np.isnan(an.PM25))]
+                ~np.isnan(an.PM25)) & (an.PM25 >= 0)]
             # pa = gpd.GeoDataFrame(data=pa, geometry=gpd.points_from_xy(pa.longitude, pa.latitude),
             #                       crs="EPSG:4326").to_crs(crs)
             pa_qa = gpd.GeoDataFrame(data=pa_qa, geometry=gpd.points_from_xy(pa_qa.longitude, pa_qa.latitude),

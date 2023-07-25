@@ -27,8 +27,11 @@ def main():
     if args.g:
         utils.generate_pa_hourly(args.pa_dir, args.output_dir, args.p, args.a, args.m25, args.m10)
     df = utils.pair_data(f"{args.output_dir}/hourly_qa_pm25", args.an_dir, args.r, "+proj=aea +lat_1=29.5 +lat_2=42.5")
-    m = model.LinearRegression("PM25", ['pm25_pa', 'humidity_a'])
-    m.fit(df, args.output_dir)
+    m = model.LinearRegression("PM25", ['pm25_pa', 'pm25_pa_2', 'humidity_a'])
+    edges = np.concatenate(
+        [[-1], np.arange(5, 101, 5), np.arange(110, 201, 10), np.arange(250, 401, 50), [df.PM25.max()]])
+    edges = edges.reshape((-1, 1))
+    m.fit(df, args.output_dir, edges)
 
 
 # Press the green button in the gutter to run the script.

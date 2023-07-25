@@ -14,7 +14,7 @@ class LinearRegression:
         self.covariates = covariates
         self.model = None
 
-    def fit(self, df: pd.DataFrame, save_dir: str):
+    def fit(self, df: pd.DataFrame, save_dir: str, edges: np.ndarray):
         print("Fitting linear regression.")
         save_dir = Path(save_dir)
         save_dir.mkdir(parents=True, exist_ok=True)
@@ -33,8 +33,22 @@ class LinearRegression:
         print(f"RMSE: {np.mean((y - qa_pred) ** 2) ** 0.5}")
 
         print(f"Saving outputs to {save_dir}.")
+
+        df['pred'] = self.model.predict(df[self.covariates].to_numpy())
+        df['residuals'] = df.pred - df.PM25
+        an = df.PM25.to_numpy()
+        df['bin'] = np.argmax((an > edges[:-1]) & (an <= edges[1:]), axis=0)
+        res_stats = df.groupby('bin').agg(res_mean=("residuals", "mean"),
+                                          res_std=("residuals", "std"))
+        edges[0, 0] = 0
+        with open(save_dir / Path("residuals.txt"), 'w') as f:
+            f.write("low, high, mean, std\n")
+            f.writelines([f"{low}, {high}, {mean}, {std}\n"
+                          for low, high, mean, std
+                          in zip(edges[:-1, 0], edges[1:, 0], res_stats.res_mean, res_stats.res_std)])
+
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
-        fig.suptitle(f"PM2.5 Correlation (PurpleAir/Modeled vs. Airnow)")
+        fig.suptitle(f"PM2.5 Correlation (PurpleAir/Modeled vs. AirNow)")
         ax1.set_title("PurpleAir PM2.5 vs. AirNow PM2.5")
         sns.kdeplot(x=d.pm25_pa, y=y.flatten(), cmap="terrain", fill=True, bw_adjust=.5, thresh=0.01, clip=(0, 400),
                     ax=ax1)
@@ -52,12 +66,11 @@ class LinearRegression:
         plt.close()
 
         with open(save_dir / Path("lin_reg.txt"), 'w') as f:
-            f.writelines([f'{var}: {coef}\n' for var, coef in zip(self.covariates, self.model.coef_[0])])
+            f.writelines([f'{var}, {coef}\n' for var, coef in zip(self.covariates, self.model.coef_[0])])
 
         station_dir = save_dir / Path("images/") / Path("station_plots")
         station_dir.mkdir(parents=True, exist_ok=True)
         index = pd.date_range(df.datetime_utc.min(), df.datetime_utc.max(), freq="h", name="datetime_utc")
-        df['pred'] = self.model.predict(df[['pm25_pa', 'humidity_a']].to_numpy())
         for sid, data in df.groupby('AQSID'):
             graph_params = data.groupby("datetime_utc").agg(an_pm=("PM25", "first"),
                                                             pred_mean=("pred", "mean"),
