@@ -6,19 +6,19 @@ This is a package to perform quality control and bias correction on PurpleAir da
 
 To run the program, first clone the repository to your current working directory by running
 
-  git clone https://github.com/JeffSMLee/purpleair-qc.git
+  `git clone https://github.com/JeffSMLee/purpleair-qc.git`
 
 Next, set up the conda environment by running
 
-  conda env create -f environment.yml
+  `conda env create -f environment.yml`
 
 and activate the environment by running
 
-  conda activate rrfs
+  `conda activate rrfs`
 
 Finally, run the main script via
 
-  python main.py --pa_dir <PurpleAir dir> --an_dir <AirNow dir> --output_dir <output dir>
+  `python main.py --pa_dir <PurpleAir dir> --an_dir <AirNow dir> --output_dir <output dir>`
 
 Optional flags are
 - `--p` percentage difference
